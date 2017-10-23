@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <pthreads.h>
 
 /*
  * Ethan Peterson
@@ -8,7 +9,18 @@
 
 typedef enum {false, true} bool;
 
-int main(void)
+void
+consume(/* arguments */) {
+  /* code */
+}
+
+void
+produce(/* arguments */) {
+  /* code */
+}
+
+int
+main(void)
 {
 	//prints "Hello World"
 	printf("Hello World\n");
