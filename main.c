@@ -6,10 +6,12 @@
  * 23-10-2017
  */
 
+typedef enum {false, true} bool;
+
 int main(void)
 {
 	//prints "Hello World"
 	printf("Hello World\n");
 	// exit with no errors
-	return(0);
+	return(false);
 }
