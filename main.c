@@ -1,19 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 /*
  * Simulates the Producer/Consumer problem.
  * Uses doubly-linked lists (though only singly-linked is necessary).
  */
 
+#define MAX_LOOP 50
+#define MAX_BUFFER_SIZE 20
+#define MAX_BUFFER_VALUE 39
+srand((unsigned int)time(NULL));
+
 // define a boolean datatype called "bool"
 typedef enum {false, true} bool;
 
-/** BUFFER LOGIC */
-
 // buffer_node represents a node in a buffer
 typedef struct buffer_n {
-  int value; // less than 40
+  int value;
   struct buffer_n *next;
   struct buffer_n *prev;
 } buffer_node;
@@ -22,12 +26,28 @@ typedef struct buffer_n {
 typedef struct {
   buffer_node *head,
               *tail;
-  int size; // max of 20
+  int size;
+
+  // for threading
+  pthread_mutex_t *mut;
+  pthread_cond_t *not_empty,
+                 *not_full;
 } buffer;
 
 /* FUNCTION PROTOTYPES */
 void add_to_buffer(buffer *buf, int value);
 int remove_from_buffer(buffer *buf);
+
+/***** BUFFER LOGIC *****/
+buffer
+*new_buffer() {
+
+}
+
+void
+destroy_buffer() {
+
+}
 
 // add a value to the buffer
 void
@@ -71,22 +91,36 @@ remove_from_buffer(buffer *buf) {
 
   return (to_return);
 }
+/***** END BUFFER LOGIC *****/
 
-/** END BUFFER LOGIC */
+// deletes the first node if its value is odd
+void*
+consume1(void *argument) {
+  buffer *buf = (buffer*) argument; // get the buffer that was passed in
 
-/*void
-consume() {
+  int i, val;
+  for(i = 0; i < MAX_LOOP; i++) {
+    pthread_mutex_lock(buf->mut);
+    while(buf->length == 0){ // wait until the buffer gets some values
+      printf("consumer1: buffer empty\n");
+      pthread_cond_wait(buf->not_empty, buf->mut);
+    }
+
+    // remove NOTE: add check for odd here (same as check for length above)
+    val = remove_from_buffer(buf);
+    pthread_mutex_unlock(buf->mut);
+    pthread_cond_signal(buf->not_full); // since we just removed something, the buffer is no longer full
+    printf("consumer1: removed %d\n", val);
+  }
+}
+
+void*
+produce(void *argument) {
 
 }
 
-void
-produce() {
-
-}*/
-
 int
-main(void)
-{
+main(void) {
 	// test LinkedList operations by creating a buffer
   buffer *buf = &(buffer){NULL, NULL, 0};
   add_to_buffer(buf, 0); // add 0 to the buffer
