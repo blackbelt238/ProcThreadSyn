@@ -101,22 +101,37 @@ consume1(void *argument) {
   int i, val;
   for(i = 0; i < MAX_LOOP; i++) {
     pthread_mutex_lock(buf->mut);
-    while(buf->length == 0){ // wait until the buffer gets some values
+    while(buf->length == 0) { // wait until the buffer gets some values
       printf("consumer1: buffer empty\n");
       pthread_cond_wait(buf->not_empty, buf->mut);
     }
 
-    // remove NOTE: add check for odd here (same as check for length above)
+    // remove from buffer NOTE: add check for odd here (same as check for length above)
     val = remove_from_buffer(buf);
     pthread_mutex_unlock(buf->mut);
-    pthread_cond_signal(buf->not_full); // since we just removed something, the buffer is no longer full
+    pthread_cond_signal(buf->not_full); // since we just removed, the buffer is no longer full
     printf("consumer1: removed %d\n", val);
   }
 }
 
 void*
-produce(void *argument) {
+produce1(void *argument) {
+  buffer *buf = (buffer*) argument; // get the buffer that was passed in
 
+  int i, new_val;
+  for(i = 0; i < MAX_LOOP; i++) {
+    pthread_mutex_lock(buf->mut);
+    if(buf->length == MAX_BUFFER_SIZE) { // wait until the buffer is no longer full
+      printf("producer1: buffer full\n");
+      pthread_cond_wait(buf->not_full, buf->mut);
+    }
+
+    // add to buffer NOTE: add only an odd value
+    new_val = rand() % 40;
+    add_to_buffer(buf, new_val);
+    pthread_mutex_unlock(buf->mut);
+    pthread_cond_signal(buf->not_empty); // since we just added, the buffer is no longer empty
+  }
 }
 
 int
