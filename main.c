@@ -39,14 +39,49 @@ void add_to_buffer(buffer *buf, int value);
 int remove_from_buffer(buffer *buf);
 
 /***** BUFFER LOGIC *****/
-buffer
-*new_buffer() {
+// init_buffer takes in a buffer and initializes all its values
+void
+*init_buffer(void) {
+  buffer *buf;
+  buf = (buffer*)malloc(sizeof(buffer));
 
+  // initialize all vars
+  buf->head = NULL;
+  buf->tail = NULL;
+  buf->size = 0;
+  buf->mut = (pthread_mutex_t *) malloc (sizeof (pthread_mutex_t));
+  pthread_mutex_init(buf->mut, NULL);
+  buf->not_empty = (pthread_cond_t *) malloc (sizeof (pthread_cond_t));
+  pthread_cond_init(buf->not_empty, NULL);
+  buf->not_full = (pthread_cond_t *) malloc (sizeof (pthread_cond_t));
+  pthread_cond_init(buf->not_full, NULL);
+
+  // add 3 vals to the buffer
+  int i;
+  for(i = 0; i < 3; i++){
+    int new_val = rand() % 40;
+    add_to_buffer(buf, new_val);
+  }
+
+  return (buf);
 }
 
+// destroy_buffer takes in a buffer and KILLS IT
 void
-destroy_buffer() {
+destroy_buffer(buffer *buf) {
+  // destroy contents of buffer
+  while(buf->length > 0) {
+    remove_from_buffer(buf);
+  }
 
+  // destroy base of buffer
+  pthread_mutex_destroy(buf->mut);
+  free(buf->mut);
+  ptread_cond_destroy(buf->not_empty);
+  free(buf->not_empty);
+  ptread_cond_destroy(buf->not_full);
+  free(buf->not_full);
+  free(buf);
 }
 
 // add a value to the buffer
@@ -98,7 +133,7 @@ void*
 consume1(void *argument) {
   buffer *buf = (buffer*) argument; // get the buffer that was passed in
 
-  int i, val;
+  int i;
   for(i = 0; i < MAX_LOOP; i++) {
     pthread_mutex_lock(buf->mut);
     while(buf->length == 0) { // wait until the buffer gets some values
@@ -107,7 +142,7 @@ consume1(void *argument) {
     }
 
     // remove from buffer NOTE: add check for odd here (same as check for length above)
-    val = remove_from_buffer(buf);
+    int val = remove_from_buffer(buf);
     pthread_mutex_unlock(buf->mut);
     pthread_cond_signal(buf->not_full); // since we just removed, the buffer is no longer full
     printf("consumer1: removed %d\n", val);
@@ -118,7 +153,7 @@ void*
 produce1(void *argument) {
   buffer *buf = (buffer*) argument; // get the buffer that was passed in
 
-  int i, new_val;
+  int i;
   for(i = 0; i < MAX_LOOP; i++) {
     pthread_mutex_lock(buf->mut);
     if(buf->length == MAX_BUFFER_SIZE) { // wait until the buffer is no longer full
@@ -127,7 +162,7 @@ produce1(void *argument) {
     }
 
     // add to buffer NOTE: add only an odd value
-    new_val = rand() % 40;
+    int new_val = rand() % 40;
     add_to_buffer(buf, new_val);
     pthread_mutex_unlock(buf->mut);
     pthread_cond_signal(buf->not_empty); // since we just added, the buffer is no longer empty
