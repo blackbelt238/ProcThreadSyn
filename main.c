@@ -1,6 +1,7 @@
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
+#include <time.h>
 
 /*
  * Simulates the Producer/Consumer problem.
@@ -10,7 +11,6 @@
 #define MAX_LOOP 50
 #define MAX_BUFFER_SIZE 20
 #define MAX_BUFFER_VALUE 39
-srand((unsigned int)time(NULL));
 
 // define a boolean datatype called "bool"
 typedef enum {false, true} bool;
@@ -74,16 +74,17 @@ init_buffer(void) {
 void
 destroy_buffer(buffer *buf) {
   // destroy contents of buffer
-  while(buf->length > 0) {
+  int i;
+  for(i = buf->size; i > 0; i--) {
     remove_from_buffer(buf);
   }
 
   // destroy base of buffer
   pthread_mutex_destroy(buf->mut);
   free(buf->mut);
-  ptread_cond_destroy(buf->not_empty);
+  pthread_cond_destroy(buf->not_empty);
   free(buf->not_empty);
-  ptread_cond_destroy(buf->not_full);
+  pthread_cond_destroy(buf->not_full);
   free(buf->not_full);
   free(buf);
 }
@@ -119,7 +120,7 @@ remove_from_buffer(buffer *buf) {
 
   // delete the first node
   buf->head = to_free->next;
-  if (buf->size == 0) { // if the last node was removed
+  if (buf->size == 1) { // if the last node was removed
     buf->tail = NULL;
   }
   else { // if there are nodes still in the list, ensure the head has no previous node
@@ -140,12 +141,12 @@ consume1(void *argument) {
   int i;
   for(i = 0; i < MAX_LOOP; i++) {
     pthread_mutex_lock(buf->mut);
-    while(buf->length == 0) { // wait until the buffer gets some values
-      printf("consumer1: buffer empty\n");
+    while(buf->size == 0) { // wait until the buffer gets some values
+      printf("consumer1: BUFFER EMPTY\n");
       pthread_cond_wait(buf->not_empty, buf->mut);
     }
 
-    // remove from buffer NOTE: add check for odd here (same as check for length above)
+    // remove from buffer NOTE: add check for odd here (same as check for size above)
     int val = remove_from_buffer(buf);
     pthread_mutex_unlock(buf->mut);
     pthread_cond_signal(buf->not_full); // since we just removed, the buffer is no longer full
@@ -162,8 +163,8 @@ produce1(void *argument) {
   int i;
   for(i = 0; i < MAX_LOOP; i++) {
     pthread_mutex_lock(buf->mut);
-    if(buf->length == MAX_BUFFER_SIZE) { // wait until the buffer is no longer full
-      printf("producer1: buffer full\n");
+    if(buf->size == MAX_BUFFER_SIZE) { // wait until the buffer is no longer full
+      printf("producer1: BUFFER FULL\n");
       pthread_cond_wait(buf->not_full, buf->mut);
     }
 
@@ -172,6 +173,7 @@ produce1(void *argument) {
     add_to_buffer(buf, new_val);
     pthread_mutex_unlock(buf->mut);
     pthread_cond_signal(buf->not_empty); // since we just added, the buffer is no longer empty
+    printf("producer1: added %d\n", new_val);
   }
 
   return (NULL);
@@ -179,7 +181,23 @@ produce1(void *argument) {
 
 int
 main(void) {
-	// test threading
   buffer *buf = init_buffer();
+  pthread_t prod, cons;
+  srand((unsigned int) time(NULL));
+
+	// test threading from inital create to full destroy
+  if (buf == NULL) {
+    fprintf(stderr, "main: failed to initialize buffer\n");
+    exit(1);
+  }
+
+  pthread_create(&prod, NULL, produce1, buf);
+  pthread_create(&cons, NULL, consume1, buf);
+  pthread_join(prod, NULL);
+  pthread_join(cons, NULL);
+  destroy_buffer(buf);
+
   printf("Success\n");
+
+  return (0);
 }
