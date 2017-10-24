@@ -35,13 +35,17 @@ typedef struct {
 } buffer;
 
 /* FUNCTION PROTOTYPES */
+void *init_buffer(void);
+void destroy_buffer(buffer *buf);
 void add_to_buffer(buffer *buf, int value);
 int remove_from_buffer(buffer *buf);
+void* consume1(void *argument);
+void* produce1(void *argument);
 
 /***** BUFFER LOGIC *****/
 // init_buffer takes in a buffer and initializes all its values
-void
-*init_buffer(void) {
+void*
+init_buffer(void) {
   buffer *buf;
   buf = (buffer*)malloc(sizeof(buffer));
 
@@ -49,11 +53,11 @@ void
   buf->head = NULL;
   buf->tail = NULL;
   buf->size = 0;
-  buf->mut = (pthread_mutex_t *) malloc (sizeof (pthread_mutex_t));
+  buf->mut = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
   pthread_mutex_init(buf->mut, NULL);
-  buf->not_empty = (pthread_cond_t *) malloc (sizeof (pthread_cond_t));
+  buf->not_empty = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
   pthread_cond_init(buf->not_empty, NULL);
-  buf->not_full = (pthread_cond_t *) malloc (sizeof (pthread_cond_t));
+  buf->not_full = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
   pthread_cond_init(buf->not_full, NULL);
 
   // add 3 vals to the buffer
@@ -147,6 +151,8 @@ consume1(void *argument) {
     pthread_cond_signal(buf->not_full); // since we just removed, the buffer is no longer full
     printf("consumer1: removed %d\n", val);
   }
+
+  return (NULL);
 }
 
 void*
@@ -167,28 +173,13 @@ produce1(void *argument) {
     pthread_mutex_unlock(buf->mut);
     pthread_cond_signal(buf->not_empty); // since we just added, the buffer is no longer empty
   }
+
+  return (NULL);
 }
 
 int
 main(void) {
-	// test LinkedList operations by creating a buffer
-  buffer *buf = &(buffer){NULL, NULL, 0};
-  add_to_buffer(buf, 0); // add 0 to the buffer
-  if (buf->size != 1) {
-    printf("not added properly, len is %s\n", buf->size);
-    return (1);
-  }
-  add_to_buffer(buf, 1);
-  add_to_buffer(buf, 2);
-  add_to_buffer(buf, 3);
-  if (buf->size != 4) {
-    printf("not added properly, len is %s\n", buf->size);
-    return (1);
-  }
-  remove_from_buffer(buf);
-  if (buf->size != 3 || buf->head->value != 1) {
-    printf("not removed properly, len is %s, val is %s\n", buf->size, buf->head->value);
-    return (1);
-  }
+	// test threading
+  buffer *buf = init_buffer();
   printf("Success\n");
 }
